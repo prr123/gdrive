@@ -1060,8 +1060,8 @@ func (gdrive *GdriveApiStruct) ExportFileById(filId string, fileName string, ext
     }
 
     //Create a empty file
-
-    outfile, err := os.Create(fileName)
+	outFilNam := fmt.Sprintf("%s.%s", fileName, ext)
+    outfile, err := os.Create(outFilNam)
     if err != nil {
         return fmt.Errorf("error gdrive::ExportFile: could not create dest file! %v\n", err)
     }
