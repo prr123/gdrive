@@ -1040,11 +1040,29 @@ func (gdrive *GdriveApiStruct) ExportFileById(filId string, fileName string, ext
 	case "html":
 		mime = "text/html"
 
+	case "rtf":
+		mime = "application/rtf"
+
 	case "svg":
 		mime = "image/svg+xml"
 
+	case "docx":
+		mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+	case "xlsx":
+		mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+	case "epub":
+		mime = "application/epub+zip"
+
+	case "pptx":
+		mime = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+	case "csv":
+		mime = "text/csv"
+
 	default:
-		return fmt.Errorf("error gdrive::GetFile Download: unknown file type: %s", ext)
+		return fmt.Errorf("error ExportFileById: unknown file type: %s!", ext)
 	}
 
 
