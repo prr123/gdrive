@@ -10,12 +10,16 @@ ExportGdoc [gdoc id] format
 
 formats are: 
 
-pdf
-txt
-docx
-html
+  pdf
 
-pptx
+  txt
 
-csv
-xlsx
+  docx
+
+  html
+
+  pptx
+
+  csv
+
+  xlsx
