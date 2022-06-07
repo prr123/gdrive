@@ -64,7 +64,7 @@ var Gapp = map[string]string {
 
 // Retrieves a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
-	tokFile := "tokGdrive.json"
+	tokFile := "/home/peter/go/src/google/gdrive/tokGdrive.json"
 	tok, err := tokenFromFile(tokFile)
 	if err != nil {
 		tok = getTokenFromWeb(config)
@@ -192,11 +192,11 @@ func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error)
 	return nil
 }
 
-
-func (gdrive *GdriveApiStruct) Init() (err error) {
+//nnn
+func (gdObj *GdriveApiStruct) InitDriveApi() (svc *drive.Service, err error) {
         ctx := context.Background()
-		gdrive.Ctx = ctx
-        b, err := ioutil.ReadFile("credGdrive.json")
+		gdObj.Ctx = ctx
+        b, err := ioutil.ReadFile("/home/peter/go/src/google/gdrive/credGdrive.json")
         if err != nil {
 			return fmt.Errorf("Unable to read client secret file: %v!", err)
 		}
@@ -210,6 +210,29 @@ func (gdrive *GdriveApiStruct) Init() (err error) {
         client := getClient(config)
 
         svc, err := drive.NewService(ctx, option.WithHTTPClient(client))
+        if err != nil {
+			return fmt.Errorf("Unable to retrieve Drive client: %v !", err)
+        }
+	return svc, nil
+}
+
+func (gdrive *GdriveApiStruct) Init() (err error) {
+        ctx := context.Background()
+		gdrive.Ctx = ctx
+        b, err := ioutil.ReadFile("/home/peter/go/src/google/gdrive/credGdrive.json")
+        if err != nil {
+			return fmt.Errorf("Unable to read client secret file: %v!", err)
+		}
+
+        // If modifying these scopes, delete your previously saved token.json.
+        config, err := google.ConfigFromJSON(b, drive.DriveScope)
+        if err != nil {
+			return fmt.Errorf("Unable to parse client secret file to config: %v!", err)
+        }
+
+        client := getClient(config)
+
+        svc, err := gdrive.NewService(ctx, option.WithHTTPClient(client))
         if err != nil {
 			return fmt.Errorf("Unable to retrieve Drive client: %v !", err)
         }
@@ -467,9 +490,9 @@ func (gdrive *GdriveApiStruct) ListFoldersByName(nam string) (filList []*drive.F
 	return filList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListFolderByName(nam string) (folderList *[]FileInfo, numFolders int, err error) {
+func (gdrive *GdriveApiStruct) ListFolderByName(nam string) (folderList *[]FileInfo, err error) {
 
-	if len(nam) < 1 { return nil, -1, fmt.Errorf("error gdrive::ListFolderByName -- no name provided!")}
+	if len(nam) < 1 { return nil, fmt.Errorf("error gdrive::ListFolderByName -- no name provided!")}
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
 
@@ -483,17 +506,17 @@ func (gdrive *GdriveApiStruct) ListFolderByName(nam string) (folderList *[]FileI
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
 	if err != nil {return nil, -1, fmt.Errorf("error gdrive::ListFolderByName: get list: %v", err)}
 	numFolders = len(nfileList.Files)
-	fmt.Println("folders: ", numFolders)
+//	fmt.Println("folders: ", numFolders)
 
-	if len(pagetoken) > 0 {return nil, -1, fmt.Errorf("error gdrive::ListFolderByName: too many folders (>100)!")}
+	if len(pagetoken) > 0 {return nil, fmt.Errorf("error gdrive::ListFolderByName: too many folders (>100)!")}
 
-	finfolist :=	make([]FileInfo, numFolders)
+	finfolist := make([]FileInfo, numFolders)
 	for i:= 0; i< numFolders; i++ {
 		fileinfo, _ := gdrive.CvtToFilInfo(nfileList.Files[i])
 		finfolist[i] = *fileinfo
 	}
 	folderList = &finfolist
-	return folderList, numFolders, nil
+	return folderList, nil
 }
 
 func (gdrive *GdriveApiStruct) ListFFByName(nam string) (filList []*drive.File, err error) {
