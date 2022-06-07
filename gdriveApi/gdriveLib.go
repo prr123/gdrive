@@ -25,9 +25,9 @@ import (
 		"google.golang.org/api/googleapi"
 )
 
-type GdriveApiStruct  struct {
+type GdApiObj  struct {
 	Ctx context.Context
-	Svc *drive.Service
+	GdSvc *drive.Service
 }
 
 type FileInfo struct {
@@ -64,6 +64,14 @@ var Gapp = map[string]string {
 	"excel": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 	"csv": "text/csv",
 	"ppt": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+func ListApps() {
+// function that lists all available apps
+	fmt.Printf("******** Apps *************\n")
+ 	for k, v := range Gapp {
+		fmt.Printf("%-10s %-30s\n", k, v)
+	}
 }
 
 // Retrieves a token, saves the token, then returns the generated client.
@@ -121,7 +129,7 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error) {
+func (gdrive *GdApiObj) CreDumpFile(fid string, filnam string)(err error) {
 // function that creates a text file to dump document file
 
 	nfilnam := make([]byte,len(filnam), len(filnam)+5)
@@ -160,7 +168,7 @@ func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error)
 	}
 
 	// get file attributes
-	svc := gdrive.Svc
+	svc := gdrive.GdSvc
 	gfil, err := svc.Files.Get(fid).Do()
 	if err != nil {
 		return fmt.Errorf("error gdrive::CreDumpFile: cannot get file with id: %s! %v", fid, err)
@@ -183,8 +191,8 @@ func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error)
 	return nil
 }
 
-//nnn
-func (gdObj *GdriveApiStruct) InitDriveApi() (svc *drive.Service, err error) {
+func (gdObj *GdApiObj) InitDriveApi() (err error) {
+// method that initialises the GdriveApi structure and returns a  service pointer
         ctx := context.Background()
 		gdObj.Ctx = ctx
         b, err := ioutil.ReadFile("/home/peter/go/src/google/gdrive/credGdrive.json")
@@ -204,10 +212,15 @@ func (gdObj *GdriveApiStruct) InitDriveApi() (svc *drive.Service, err error) {
         if err != nil {
 			return fmt.Errorf("Unable to retrieve Drive client: %v !", err)
         }
-	return svc, nil
+		gdObj.GdSvc = svc
+	return nil
 }
 
-func (gdrive *GdriveApiStruct) Init() (err error) {
+/*
+func (gdObj *GdApiObj) Init() (err error) {
+// method that initialise the Gdrive Object. Ther service pointer is assigned to the GdApiObj
+// better to use the method InitDriveApi
+
         ctx := context.Background()
 		gdrive.Ctx = ctx
         b, err := ioutil.ReadFile("/home/peter/go/src/google/gdrive/credGdrive.json")
@@ -227,25 +240,28 @@ func (gdrive *GdriveApiStruct) Init() (err error) {
         if err != nil {
 			return fmt.Errorf("Unable to retrieve Drive client: %v !", err)
         }
-		gdrive.Svc = svc
+		gdObj.GdSvc = svc
 	return nil
 }
+*/
 
-func (gdrive *GdriveApiStruct) GetAbout() (resp *drive.About, err error) {
+func (gdrive *GdApiObj) GetAbout() (resp *drive.About, err error) {
+// method that lists all files in a drive
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
 
-	svc := gdrive.Svc
+	svc := gdrive.GdSvc
     resp, err = svc.About.Get().Fields(fields...).Do()
     if err != nil {
         fmt.Println("error svc.about.get:", err)
         return nil, fmt.Errorf("error GetAbout: %v", err)
     }
-
 	return resp, nil
 }
 
-func (gdrive *GdriveApiStruct) DumpAbout(about *drive.About, outfil *os.File) (err error) {
+func (gdrive *GdApiObj) DumpAbout(about *drive.About, outfil *os.File) (err error) {
+// method that writes results from an about query into the output file
+
 	var outstr string
 
 	if outfil == nil {
@@ -299,7 +315,8 @@ func (gdrive *GdriveApiStruct) DumpAbout(about *drive.About, outfil *os.File) (e
 }
 
 
-func (gdrive *GdriveApiStruct) ListFiles() (fileList []*drive.File, err error) {
+func (gdrive *GdApiObj) ListFiles() (fileList []*drive.File, err error) {
+// method that lists all folders
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
 
@@ -310,7 +327,7 @@ func (gdrive *GdriveApiStruct) ListFiles() (fileList []*drive.File, err error) {
 
 //	fmt.Println("qstr: ", qstr)
 	for i:=0; i< 3; i++ {
-		nfileList, err := gdrive.Svc.Files.List().
+		nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
@@ -342,7 +359,8 @@ func (gdrive *GdriveApiStruct) ListFiles() (fileList []*drive.File, err error) {
 	return fileList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListAllFiles(dirId string) (fileList []*drive.File, err error) {
+func (gdrive *GdApiObj) ListAllFiles(dirId string) (fileList []*drive.File, err error) {
+// method that lists all files in a folder with id dirId
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
 
@@ -354,7 +372,7 @@ func (gdrive *GdriveApiStruct) ListAllFiles(dirId string) (fileList []*drive.Fil
 
 //	fmt.Println("qstr: ", qstr)
 	for i:=0; i< 3; i++ {
-		nfileList, err := gdrive.Svc.Files.List().
+		nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
@@ -389,8 +407,9 @@ func (gdrive *GdriveApiStruct) ListAllFiles(dirId string) (fileList []*drive.Fil
 }
 
 
-func (gdrive *GdriveApiStruct) ListFilesByName(nam string, dirId string) (filList []*drive.File, err error) {
-//	var filInfList []FileInfo
+func (gdrive *GdApiObj) ListFilesByName(nam string, dirId string) (filList []*drive.File, err error) {
+// method that lists all files with name 'nam' and folder id 'dirId'
+
 	var qstr string
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
@@ -398,7 +417,7 @@ func (gdrive *GdriveApiStruct) ListFilesByName(nam string, dirId string) (filLis
 	pagetoken := ""
 	fin := false
 	if len(dirId) > 0 {
-		_, err = gdrive.Svc.Files.Get(dirId).Context(gdrive.Ctx).Do()
+		_, err = gdrive.GdSvc.Files.Get(dirId).Context(gdrive.Ctx).Do()
 		if err != nil {return filList, fmt.Errorf("error gdrive::CopyFile: could not find folder with id: %s -- %v", dirId, err)}
 		qstr = fmt.Sprintf("(mimeType != '%s' and name = '%s') and '%s' in parents", Gapp["folder"], nam, dirId)
 	} else {
@@ -407,7 +426,7 @@ func (gdrive *GdriveApiStruct) ListFilesByName(nam string, dirId string) (filLis
 
 //	fmt.Println("qstr: ", qstr)
 	for i:=0; i< 3; i++ {
-		nfileList, err := gdrive.Svc.Files.List().
+		nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
@@ -439,7 +458,8 @@ func (gdrive *GdriveApiStruct) ListFilesByName(nam string, dirId string) (filLis
 	return filList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListFoldersByName(nam string) (filList []*drive.File, err error) {
+func (gdrive *GdApiObj) ListFoldersByName(nam string) (filList []*drive.File, err error) {
+// method that looks for all folders with name 'nam' and returns a splice of file pointers
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
 
@@ -449,7 +469,7 @@ func (gdrive *GdriveApiStruct) ListFoldersByName(nam string) (filList []*drive.F
 
 //	fmt.Println("qstr: ", qstr)
 	for i:=0; i< 3; i++ {
-		nfileList, err := gdrive.Svc.Files.List().
+		nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
@@ -481,7 +501,8 @@ func (gdrive *GdriveApiStruct) ListFoldersByName(nam string) (filList []*drive.F
 	return filList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListFolderByName(nam string) (folderList *[]FileInfo, err error) {
+func (gdrive *GdApiObj) ListFolderByName(nam string) (folderList *[]FileInfo, err error) {
+// method that looks for all sub folders of folder with name 'nam' and returns a list of folder pointers
 
 	if len(nam) < 1 { return nil, fmt.Errorf("error gdrive::ListFolderByName -- no name provided!")}
 
@@ -491,12 +512,12 @@ func (gdrive *GdriveApiStruct) ListFolderByName(nam string) (folderList *[]FileI
 	qstr := fmt.Sprintf("mimeType = '%s' and name = '%s'", Gapp["folder"], nam)
 
 //	fmt.Println("qstr: ", qstr)
-	nfileList, err := gdrive.Svc.Files.List().
+	nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
-	if err != nil {return nil, -1, fmt.Errorf("error gdrive::ListFolderByName: get list: %v", err)}
-	numFolders = len(nfileList.Files)
+	if err != nil {return nil, fmt.Errorf("error gdrive::ListFolderByName: get list: %v", err)}
+	numFolders := len(nfileList.Files)
 //	fmt.Println("folders: ", numFolders)
 
 	if len(pagetoken) > 0 {return nil, fmt.Errorf("error gdrive::ListFolderByName: too many folders (>100)!")}
@@ -510,7 +531,8 @@ func (gdrive *GdriveApiStruct) ListFolderByName(nam string) (folderList *[]FileI
 	return folderList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListFFByName(nam string) (filList []*drive.File, err error) {
+func (gdrive *GdApiObj) ListFFByName(nam string) (filList []*drive.File, err error) {
+// method that looks for all files with name 'nam'
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
 
@@ -520,7 +542,7 @@ func (gdrive *GdriveApiStruct) ListFFByName(nam string) (filList []*drive.File, 
 
 //	fmt.Println("qstr: ", qstr)
 	for i:=0; i< 3; i++ {
-		nfileList, err := gdrive.Svc.Files.List().
+		nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
@@ -552,8 +574,9 @@ func (gdrive *GdriveApiStruct) ListFFByName(nam string) (filList []*drive.File, 
 	return filList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListFilesBySize(foldId string, minSize int64) (filList []*drive.File, err error) {
+func (gdrive *GdApiObj) ListFilesBySize(foldId string, minSize int64) (filList []*drive.File, err error) {
 // method that lists all files above a certain size
+
 	var qstr string
 	if len(foldId) < 1 {return nil, fmt.Errorf("error gdrive::ListFilesBySize: no foldId provided!")}
 
@@ -569,7 +592,7 @@ func (gdrive *GdriveApiStruct) ListFilesBySize(foldId string, minSize int64) (fi
 	}
 //	fmt.Println("qstr: ", qstr)
 	for i:=0; i< 3; i++ {
-		nfileList, err := gdrive.Svc.Files.List().
+		nfileList, err := gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).
 		PageToken(pagetoken).Context(gdrive.Ctx).Do()
@@ -602,9 +625,11 @@ func (gdrive *GdriveApiStruct) ListFilesBySize(foldId string, minSize int64) (fi
 	return filList, nil
 }
 
-func (gdrive *GdriveApiStruct) ListTopDir() (id string, err error) {
+func (gdrive *GdApiObj) ListTopDir() (id string, err error) {
+// method that provides the id of the root folder
+
 	var topDir *drive.File
-	topDir, err = gdrive.Svc.Files.Get("root").Context(gdrive.Ctx).Do()
+	topDir, err = gdrive.GdSvc.Files.Get("root").Context(gdrive.Ctx).Do()
 	if err != nil {
 		return "", fmt.Errorf("error gdrive::ListTopDir: %v", err)
 	}
@@ -613,32 +638,37 @@ func (gdrive *GdriveApiStruct) ListTopDir() (id string, err error) {
 
 
 
-func (gdrive *GdriveApiStruct) CopyFile(filId string, nam string, dirId string) (nfilId string, err error) {
-// needs work
+func (gdrive *GdApiObj) CopyFile(filId string, nam string, dirId string) (nfilId string, err error) {
+// method that copies a file with id 'filId' to new file. The method returns the id of the new file 'nfilId
+// still todo
+// assign same parent id to new file
+
 	var fil, nfil *drive.File
 	var par [1]string
 	if len(filId) < 1 {return "", fmt.Errorf("error gdrive::CopyFile -- no filId string!")}
 	if len(nam) < 1 {return "", fmt.Errorf("error gdrive::CopyFile -- no nam string!")}
 
 	if len(dirId) > 0 {
-		_, err = gdrive.Svc.Files.Get(dirId).Context(gdrive.Ctx).Do()
+		_, err = gdrive.GdSvc.Files.Get(dirId).Context(gdrive.Ctx).Do()
 		if err != nil {return "",fmt.Errorf("error gdrive::CopyFile: could not find folder with id: %s -- %v", dirId, err)}
 	}
 
-	fil, err = gdrive.Svc.Files.Get(filId).Context(gdrive.Ctx).Do()
+	fil, err = gdrive.GdSvc.Files.Get(filId).Context(gdrive.Ctx).Do()
 	if err != nil {return "",fmt.Errorf("error gdrive::CopyFile: could not find file with id: %s -- %v", filId, err)}
 	par[0] = dirId
 	fil.Parents = par[:]
 	fil.Name = nam
-	nfil, err = gdrive.Svc.Files.Copy(filId, fil).Context(gdrive.Ctx).Do()
+	nfil, err = gdrive.GdSvc.Files.Copy(filId, fil).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return "", fmt.Errorf("error gdrive::CopyFile: %v", err)
 	}
 	return nfil.Id, nil
 }
 
-func (gdrive *GdriveApiStruct) CreateFile(pDirId string, nam string) (fileId string, err error) {
-// needs work
+func (gdrive *GdApiObj) CreateFile(pDirId string, nam string) (fileId string, err error) {
+// A method that creates a file with the parent id 'pDirId' and name 'nam'. 
+// The method return the file id of the created file
+
 	var fil drive.File
 	var dir *drive.File
 	var par [1]string
@@ -652,14 +682,17 @@ func (gdrive *GdriveApiStruct) CreateFile(pDirId string, nam string) (fileId str
 	fil.Name = nam
 	fil.MimeType = Gapp["folder"]
 
-	dir, err = gdrive.Svc.Files.Create(&fil).Context(gdrive.Ctx).Do()
+	dir, err = gdrive.GdSvc.Files.Create(&fil).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return "", fmt.Errorf("error gdrive::CreateDir: %v", err)
 	}
 	return dir.Id, nil
 }
 
-func (gdrive *GdriveApiStruct) CreateFolder(pDirId string, nam string) (folderId string, err error) {
+func (gdrive *GdApiObj) CreateFolder(pDirId string, nam string) (folderId string, err error) {
+// A method that creates a folder under the parent folder with id 'pDirId' and name 'nam'.
+// The method returns the  file id 'folderId' of the newly created Folder.
+
 	var fil drive.File
 	var dir *drive.File
 	var par [1]string
@@ -673,31 +706,34 @@ func (gdrive *GdriveApiStruct) CreateFolder(pDirId string, nam string) (folderId
 	fil.Name = nam
 	fil.MimeType = Gapp["folder"]
 
-	dir, err = gdrive.Svc.Files.Create(&fil).Context(gdrive.Ctx).Do()
+	dir, err = gdrive.GdSvc.Files.Create(&fil).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return "", fmt.Errorf("error gdrive::CreateDir: %v", err)
 	}
 	return dir.Id, nil
 }
 
-func (gdrive *GdriveApiStruct) DeleteFileById(filId string) (err error) {
+func (gdrive *GdApiObj) DeleteFileById(filId string) (err error) {
+// A method that deletes a file with the id 'filId'
 
 	if len(filId)<1 {return fmt.Errorf("error gdrive::DeleteFileById: no file id provided!")}
 
-	err = gdrive.Svc.Files.Delete(filId).Context(gdrive.Ctx).Do()
+	err = gdrive.GdSvc.Files.Delete(filId).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return fmt.Errorf("error gdrive::DeleteFolderById: %v", err)
 	}
 	return nil
 }
 
-func (gdrive *GdriveApiStruct) DeleteFileByName(nam string) (err error) {
+func (gdrive *GdApiObj) DeleteFileByName(nam string) (err error) {
+// A method that deletes a file indendified by name 'nam'
+// not finished
 
 	if len(nam)<1 {return fmt.Errorf("error gdrive::DeleteFileByName: no name provided!")}
 
 	fid:= "abc"
 
-	err = gdrive.Svc.Files.Delete(fid).Context(gdrive.Ctx).Do()
+	err = gdrive.GdSvc.Files.Delete(fid).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return fmt.Errorf("error gdrive::DeleteFolderById: %v", err)
 	}
@@ -706,26 +742,29 @@ func (gdrive *GdriveApiStruct) DeleteFileByName(nam string) (err error) {
 
 
 
-func (gdrive *GdriveApiStruct) FetchFileById(fid string) (resp *http.Response, err error) {
+func (gdrive *GdApiObj) FetchFileById(fid string) (resp *http.Response, err error) {
+// A method that downloads a file identified by id 'fil' which returns the file in the http response body
 
 	if len(fid)<1 {return nil, fmt.Errorf("error gdrive::GetFiles: no nam provided!")}
 
-	resp, err = gdrive.Svc.Files.Get(fid).Context(gdrive.Ctx).Download()
+	resp, err = gdrive.GdSvc.Files.Get(fid).Context(gdrive.Ctx).Download()
 	if err != nil {
 		return nil, fmt.Errorf("error gdrive::GetFile Download: %v", err)
 	}
 	return resp, nil
 }
 
-func (gdrive *GdriveApiStruct) MoveFileById(filId string, dirId string) (err error) {
+func (gdrive *GdApiObj) MoveFileById(filId string, dirId string) (err error) {
+// A method that moves the file with file id 'filId' into a dierectory with the id 'dirId'
+
 	var fil, updfil *drive.File
 	var parentStr string
 
 	if len(filId)<1 {return fmt.Errorf("error gdrive::MoveFileById: no filId provided!")}
 	if len(dirId)<1 {return fmt.Errorf("error gdrive::MoveFileById: no dirId provided!")}
-	fil, err = gdrive.Svc.Files.Get(filId).Context(gdrive.Ctx).Do()
+	fil, err = gdrive.GdSvc.Files.Get(filId).Context(gdrive.Ctx).Do()
 	if err != nil {return fmt.Errorf("error gdrive::MoveFileById: could not find file with id: %s -- %v", filId, err)}
-	_, err = gdrive.Svc.Files.Get(dirId).Context(gdrive.Ctx).Do()
+	_, err = gdrive.GdSvc.Files.Get(dirId).Context(gdrive.Ctx).Do()
 	if err != nil {return fmt.Errorf("error gdrive::MoveFileById: could not find folder with id: %s -- %v", dirId, err)}
 
 	// remove old parents first, if they exist
@@ -737,12 +776,12 @@ func (gdrive *GdriveApiStruct) MoveFileById(filId string, dirId string) (err err
 			parentStr += "," + fil.Parents[i]
 		}
 
-		updfil, err = gdrive.Svc.Files.Update(filId, fil).RemoveParents(parentStr).Context(gdrive.Ctx).Do()
+		updfil, err = gdrive.GdSvc.Files.Update(filId, fil).RemoveParents(parentStr).Context(gdrive.Ctx).Do()
 		if err != nil {	return fmt.Errorf("error gdrive::GetFilebyId: could not remove parents: %v", err)}
 		updFilId = updfil.Id
 	}
 
-	updfil, err = gdrive.Svc.Files.Update(updFilId, updfil).AddParents(dirId).Context(gdrive.Ctx).Do()
+	updfil, err = gdrive.GdSvc.Files.Update(updFilId, updfil).AddParents(dirId).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return fmt.Errorf("error gdrive::GetFilebyId: could not remove parents: %v", err)
 	}
@@ -750,24 +789,26 @@ func (gdrive *GdriveApiStruct) MoveFileById(filId string, dirId string) (err err
 	return nil
 }
 
-func (gdrive *GdriveApiStruct) GetFileById(filId string) (fil *drive.File, err error) {
+func (gdrive *GdApiObj) GetFileById(filId string) (fil *drive.File, err error) {
+// A method that returns a file with the id 'filId'
 
 	if len(filId)<1 {return nil, fmt.Errorf("error gdrive::GetFiles: no nam provided!")}
 
-	fil, err = gdrive.Svc.Files.Get(filId).Context(gdrive.Ctx).Do()
+	fil, err = gdrive.GdSvc.Files.Get(filId).Context(gdrive.Ctx).Do()
 	if err != nil {
-		return nil, fmt.Errorf("error gdrive::GetFile Download: %v", err)
+		return nil, fmt.Errorf("error gdrive::GetFileById: %v", err)
 	}
 	return fil, nil
 }
 
-func (gdrive *GdriveApiStruct) GetFileInfoById(filId string) (filinfo *FileInfo , err error) {
+func (gdrive *GdApiObj) GetFileInfoById(filId string) (filinfo *FileInfo , err error) {
+// A method that returns a pointer to the file info struct 'FileInfo' of the file with id 'filId'
 
 	fields := []googleapi.Field{"id, name, mimeType, parents, fullFileExtension, modifiedTime, size"}
 
 	if len(filId)<1 {return nil, fmt.Errorf("error gdrive::GetFileInfoById: no filId provided!")}
 
-	fil, err := gdrive.Svc.Files.Get(filId).Fields(fields...).Context(gdrive.Ctx).Do()
+	fil, err := gdrive.GdSvc.Files.Get(filId).Fields(fields...).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("error gdrive::GetFile Download: %v", err)
 	}
@@ -777,7 +818,8 @@ func (gdrive *GdriveApiStruct) GetFileInfoById(filId string) (filinfo *FileInfo 
 	return filinfo, nil
 }
 
-func (gdrive *GdriveApiStruct) CvtToFilInfo(fil *drive.File) (filinfoptr *FileInfo , err error) {
+func (gdrive *GdApiObj) CvtToFilInfo(fil *drive.File) (filinfoptr *FileInfo , err error) {
+// A method that creates a FileIndo structure of the file referenced by 'fil'
 
 	var filinfo FileInfo
 	filinfo.Id = fil.Id
@@ -794,7 +836,9 @@ func (gdrive *GdriveApiStruct) CvtToFilInfo(fil *drive.File) (filinfoptr *FileIn
 	return &filinfo, nil
 }
 
-func (gdrive *GdriveApiStruct) GetFileByName(nam string) (filesInfo *[]FileInfo, err error) {
+func (gdrive *GdApiObj) GetFileByName(nam string) (filesInfo *[]FileInfo, err error) {
+// A method that returns a reference to a slice of FileInfo structures which all have the name 'nam'
+
 	var rfileList *drive.FileList
 
 	fields := []googleapi.Field{"nextPageToken, files(id, name, mimeType, parents, modifiedTime)"}
@@ -810,7 +854,7 @@ func (gdrive *GdriveApiStruct) GetFileByName(nam string) (filesInfo *[]FileInfo,
 	if len(dirs) == 1 {
 		qstr := fmt.Sprintf("name = '%s'", nam)
 //		fmt.Println("qstr: ", qstr)
-		rfileList, err = gdrive.Svc.Files.List().
+		rfileList, err = gdrive.GdSvc.Files.List().
 		Fields(fields...).
 		Q(qstr).Context(gdrive.Ctx).Do()
 		if err != nil {
@@ -830,7 +874,7 @@ func (gdrive *GdriveApiStruct) GetFileByName(nam string) (filesInfo *[]FileInfo,
 	if len(dirs[0]) < 1 { firstDirStr = "root" }
 	qstr := fmt.Sprintf("name = '%s' and mimeType = '%s'", firstDirStr, Gapp["folder"])
 //	fmt.Println("qstr file no dir: ", qstr)
-	rfileList, err = gdrive.Svc.Files.List().Fields(fields...).Q(qstr).Context(gdrive.Ctx).Do()
+	rfileList, err = gdrive.GdSvc.Files.List().Fields(fields...).Q(qstr).Context(gdrive.Ctx).Do()
 
 	if err != nil {	return nil, fmt.Errorf("error gdrive::GetFilebyName: %v", err)}
 	if len(rfileList.Files) > 1 {return nil, fmt.Errorf("error gdrive::GetFileByName: multiple folders with same name!")}
@@ -844,7 +888,7 @@ func (gdrive *GdriveApiStruct) GetFileByName(nam string) (filesInfo *[]FileInfo,
 		qstr := fmt.Sprintf("(name = '%s' and '%s' in parents) and mimeType = '%s'", dirs[i], dirId, Gapp["folder"])
 //		fmt.Println("qstr dir: ", qstr)
 
-		rfileList, err = gdrive.Svc.Files.List().Q(qstr).Fields(fields...).Context(gdrive.Ctx).Do()
+		rfileList, err = gdrive.GdSvc.Files.List().Q(qstr).Fields(fields...).Context(gdrive.Ctx).Do()
 		if err != nil {
 			return nil, fmt.Errorf("error gdrive::GetFilebyName: %v", err)
 		}
@@ -868,7 +912,7 @@ func (gdrive *GdriveApiStruct) GetFileByName(nam string) (filesInfo *[]FileInfo,
 	}
 //	fmt.Println("qstr file: ", qstr)
 
-	rfileList, err = gdrive.Svc.Files.List().Fields(fields...).Q(qstr).Context(gdrive.Ctx).Do()
+	rfileList, err = gdrive.GdSvc.Files.List().Fields(fields...).Q(qstr).Context(gdrive.Ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("error gdrive::GetFilebyName: %v", err)
 	}
@@ -897,8 +941,10 @@ func (gdrive *GdriveApiStruct) GetFileByName(nam string) (filesInfo *[]FileInfo,
 	}
 }
 
-func (gdrive *GdriveApiStruct) GetFullPath(filId string) (filesInfo *[]FileInfo, path string, err error) {
-//	var rfileList *drive.FileList
+func (gdrive *GdApiObj) GetFullPath(filId string) (filesInfo *[]FileInfo, path string, err error) {
+// A method that returns a slice of FileInfo structures (one for each folder in the path)
+// and the full folder path of a file with file id 'filId'
+
 	var gfil *drive.File
 	var folders [10]FileInfo
 	var fslice []FileInfo
@@ -915,7 +961,7 @@ func (gdrive *GdriveApiStruct) GetFullPath(filId string) (filesInfo *[]FileInfo,
 //		qstr := fmt.Sprintf("(name = '%s' and '%s' in parents) and mimeType = '%s'", dirs[i], dirId, Gapp["folder"])
 //		fmt.Println("qstr dir: ", qstr)
 
-		gfil, err = gdrive.Svc.Files.Get(nfilId).Fields(fields...).Context(gdrive.Ctx).Do()
+		gfil, err = gdrive.GdSvc.Files.Get(nfilId).Fields(fields...).Context(gdrive.Ctx).Do()
 		if err != nil {
 			return nil, "", fmt.Errorf("error gdrive::GetFullPath: %v", err)
 		}
@@ -942,11 +988,12 @@ func (gdrive *GdriveApiStruct) GetFullPath(filId string) (filesInfo *[]FileInfo,
 	return nil, path, fmt.Errorf("error gdrive::GetFullPath: file/folder path has too many levels (>10)!")
 }
 
-func (gdrive *GdriveApiStruct) GetFileChar(fid string) (gfil *drive.File, err error) {
+func (gdrive *GdApiObj) GetFileChar(fid string) (gfil *drive.File, err error) {
+// method that returns a file reference for the file with the id 'fid'
 
 	if len(fid)<1 {return nil, fmt.Errorf("error gdrive::GetFileChar: no file id provided!")}
 
-	svc := gdrive.Svc
+	svc := gdrive.GdSvc
 	gfil, err = svc.Files.Get(fid).Do()
 	if err != nil {
 		return nil, fmt.Errorf("error gdrive::GetFileChar: %v",err)
@@ -954,18 +1001,20 @@ func (gdrive *GdriveApiStruct) GetFileChar(fid string) (gfil *drive.File, err er
 	return gfil, nil
 }
 
-func (gdrive *GdriveApiStruct) EmptyTrash() (err error) {
+func (gdrive *GdApiObj) EmptyTrash() (err error) {
+// A method that empties the bin that contains the deleted files
 
-	svc := gdrive.Svc
+	svc := gdrive.GdSvc
 	err = svc.Files.EmptyTrash().Do()
 	if err != nil {
 		return fmt.Errorf("error gdrive::EmptyTrash %v",err)
 	}
 	return nil
-
 }
 
-func (gdrive *GdriveApiStruct) DumpFileChar(inGfil *drive.File, outfil *os.File) (err error) {
+func (gdrive *GdApiObj) DumpFileChar(inGfil *drive.File, outfil *os.File) (err error) {
+// A method that writes all the file characteristics of an input file 'inGfil' to an output file 'outfil'
+
 	var outstr string
 
 	if inGfil == nil {return fmt.Errorf("error gdrive::DumpFileChar: no input drive file provided!")	}
@@ -1027,12 +1076,35 @@ func (gdrive *GdriveApiStruct) DumpFileChar(inGfil *drive.File, outfil *os.File)
 	return nil
 }
 
-func (gdrive *GdriveApiStruct) ExportFile(inGfil *drive.File, outfil *os.File) (err error) {
+func (gdrive *GdApiObj) ExportFile(inGfil *drive.File, outfil *os.File) (err error) {
+// method that exports a file to an outfil
+// still todo
 
 	return nil
 }
 
-func (gdrive *GdriveApiStruct) ExportFileById(filId string, fileName string, ext string) (err error) {
+func listExt() {
+// function that prints all extensions
+
+	fmt.Println("***** Valid Extensions *********")
+	fmt.Printf("\"png\"  mime: image/png\n")
+	fmt.Printf("\"jpg\"  mime: image/jpeg\n")
+	fmt.Printf("\"pdf\"  mime: application/pdf\n")
+	fmt.Printf("\"txt\"  mime: text/plain\n")
+	fmt.Printf("\"html\" mime: text/html\n")
+	fmt.Printf("\"rtf\"  mime: application/rtf\n")
+	fmt.Printf("\"svg\"  mime: image/svg+xml\n")
+	fmt.Printf("\"docx\" mime: application/vnd.openxmlformats-officedocument.wordprocessingml.document\n")
+	fmt.Printf("\"xlsx\" mime: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n")
+	fmt.Printf("\"epub\" mime: application/epub+zip\n")
+	fmt.Printf("\"pptx\" mime: application/vnd.openxmlformats-officedocument.presentationml.presentation\n")
+	fmt.Printf("\"csv\"  mime: text/csv\n")
+}
+
+func (gdrive *GdApiObj) ExportFileById(filId string, fileName string, ext string) (err error) {
+// A method that exports a file with file id 'filId' to a file with name 'fileName' and extension 'ext'
+// The extensions have to be be part of a table
+
 	var mime string
 
 	if !(len(filId) > 0) {return fmt.Errorf("error gdrive::GetFiles: no id provided!")}
@@ -1080,7 +1152,7 @@ func (gdrive *GdriveApiStruct) ExportFileById(filId string, fileName string, ext
 	}
 
 
-	httpResp, err := gdrive.Svc.Files.Export(filId, mime).Context(gdrive.Ctx).Download()
+	httpResp, err := gdrive.GdSvc.Files.Export(filId, mime).Context(gdrive.Ctx).Download()
 	if err != nil {
 		return fmt.Errorf("error gdrive::GetFile Download: %v", err)
 	}
@@ -1108,13 +1180,14 @@ func (gdrive *GdriveApiStruct) ExportFileById(filId string, fileName string, ext
 	return nil
 }
 
-func (gdrive *GdriveApiStruct) DownloadFileById(filId string, fileName string) (err error) {
+func (gdrive *GdApiObj) DownloadFileById(filId string, fileName string) (err error) {
+// A method that downloads a file with the id 'filid' to a file with the name 'fileName'
 
 	if !(len(filId) > 0) {return fmt.Errorf("error gdrive::DownloadFileById: no id provided!")}
 	if !(len(fileName) > 0) {return fmt.Errorf("error gdrive::DownloadFileById: no file name provided!")}
 
 
-	httpResp, err := gdrive.Svc.Files.Get(filId).Context(gdrive.Ctx).Download()
+	httpResp, err := gdrive.GdSvc.Files.Get(filId).Context(gdrive.Ctx).Download()
 	if err != nil {
 		return fmt.Errorf("error gdrive::DownloadFileById: %v", err)
 	}
