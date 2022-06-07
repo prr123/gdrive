@@ -1,7 +1,11 @@
-// googe drive library
-// author prr
-// 30/1/2022
-// copywrite 2022 prr
+// gdriveLib.go
+// golang library for google drive file management
+//
+// author: prr, azul software
+// date: 30/1/2022
+// update: 7/6/2022
+// copywrite 2022 prr, azul software
+//
 
 package gdriveLib
 
@@ -117,13 +121,9 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-// create text file to dump document file
 func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error) {
+// function that creates a text file to dump document file
 
-//	old_filenam := filnam
-
-//	filExt := -1
-//	var nfilnam []byte
 	nfilnam := make([]byte,len(filnam), len(filnam)+5)
 	for i:= len(filnam) -1; i > -1; i-- {
 		nfilnam[i] = filnam[i]
@@ -131,18 +131,8 @@ func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error)
 			nfilnam[i] = '_'
 		}
 	}
-	ext := "txt"
 
-/*
-	if filExt > 0 {
-		ext = filnam[filExt+1:]
-		filnam = filnam[:filExt]
-	} else {
-		if !(len(ext) >0) {
-//			return nil, fmt.Errorf("error CreDumpFile: no file extension!")
-		}
-	}
-*/
+	ext := "txt"
 
 	for i:=0; i<len(nfilnam); i++ {
 		if nfilnam[i] == ' ' {
@@ -161,6 +151,7 @@ func (gdrive *GdriveApiStruct) CreDumpFile(fid string, filnam string)(err error)
 	if !filinfo.IsDir() {
 		return fmt.Errorf("error gdrive::CreDumpFile -- file \"output\" is not a directory!")
 	}
+
 	path:= "output/" + string(nfilnam) + "." + ext
 //	fmt.Println("path: ",path)
 	outfil, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
