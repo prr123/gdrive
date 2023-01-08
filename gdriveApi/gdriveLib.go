@@ -4,7 +4,8 @@
 // author: prr, azul software
 // date: 30/1/2022
 // update: 7/6/2022
-// copywrite 2022 prr, azul software
+// update 8/1/2023 change initGdApi due to google change authorization
+// copywrite 2022, 2023 prr, azul software
 //
 
 package gdriveLib
@@ -14,7 +15,6 @@ import (
         "encoding/json"
         "fmt"
 		"io"
-        "io/ioutil"
 		"strings"
         "net/http"
         "os"
@@ -40,6 +40,21 @@ type FileInfo struct {
 	SingleParent bool
 	ModTime string
 	Size int64
+}
+
+type cred struct {
+    Installed credItems `json:"installed"`
+    Web credItems `json:"web"`
+}
+
+type credItems struct {
+    ClientId string `json:"client_id"`
+    ProjectId string `json:"project_id"`
+    AuthUri string `json:"auth_uri"`
+    TokenUri string `json:"token_uri"`
+//  Auth_provider_x509_cert_url string `json:"auth_provider_x509_cert_url"`
+    ClientSecret string `json:"client_secret"`
+    RedirectUris []string `json:"redirect_uris"`
 }
 
 var Gapp = map[string]string {
@@ -75,6 +90,7 @@ func ListApps() {
 }
 
 // Retrieves a token, saves the token, then returns the generated client.
+/*
 func getClient(config *oauth2.Config) *http.Client {
 	tokFile := "/home/peter/go/src/google/gdrive/tokGdrive.json"
 	tok, err := tokenFromFile(tokFile)
@@ -84,26 +100,7 @@ func getClient(config *oauth2.Config) *http.Client {
 	}
 	return config.Client(context.Background(), tok)
 }
-
-// Requests a token from the web, then returns the retrieved token.
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-        authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-        fmt.Printf("Go to the following link in your browser then type the "+
-                "authorization code: \n%v\n", authURL)
-
-        var authCode string
-        if _, err := fmt.Scan(&authCode); err != nil {
-			fmt.Println("Unable to read authorization code: ", err)
-			os.Exit(1)
-        }
-
-        tok, err := config.Exchange(oauth2.NoContext, authCode)
-        if err != nil {
-			fmt.Println("Unable to retrieve token from web: ", err)
-			os.Exit(1)
-        }
-        return tok
-}
+*/
 
 // Retrieves a token from a local file.
 func tokenFromFile(file string) (*oauth2.Token, error) {
@@ -118,6 +115,7 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 }
 
 // Saves a token to a file path.
+/*
 func saveToken(path string, token *oauth2.Token) {
 	fmt.Printf("Saving credential file to: %s\n", path)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
@@ -128,7 +126,7 @@ func saveToken(path string, token *oauth2.Token) {
 	}
 	json.NewEncoder(f).Encode(token)
 }
-
+*/
 func (gdrive *GdApiObj) CreDumpFile(fid string, filnam string)(err error) {
 // function that creates a text file to dump document file
 
@@ -193,57 +191,50 @@ func (gdrive *GdApiObj) CreDumpFile(fid string, filnam string)(err error) {
 
 func (gdObj *GdApiObj) InitDriveApi() (err error) {
 // method that initialises the GdriveApi structure and returns a  service pointer
-        ctx := context.Background()
-		gdObj.Ctx = ctx
-        b, err := ioutil.ReadFile("/home/peter/go/src/google/gdrive/credGdrive.json")
-        if err != nil {
-			return fmt.Errorf("Unable to read client secret file: %v!", err)
-		}
 
-        // If modifying these scopes, delete your previously saved token.json.
-        config, err := google.ConfigFromJSON(b, drive.DriveScope)
-        if err != nil {
-			return fmt.Errorf("Unable to parse client secret file to config: %v!", err)
-        }
+	var cred cred
+	var config oauth2.Config
 
-        client := getClient(config)
+	ctx := context.Background()
+	gdObj.Ctx = ctx
 
-        svc, err := drive.NewService(ctx, option.WithHTTPClient(client))
-        if err != nil {
-			return fmt.Errorf("Unable to retrieve Drive client: %v !", err)
-        }
-		gdObj.GdSvc = svc
+	credFilNam := "/home/peter/go/src/google/gdoc/loginCred.json"
+	credbuf, err := os.ReadFile(credFilNam)
+	if err != nil {return fmt.Errorf("os.Read %s: %v!", credFilNam, err)}
+
+	err = json.Unmarshal(credbuf,&cred)
+    if err != nil {return fmt.Errorf("error unMarshal cred: %v\n", err)}
+
+	if len(cred.Installed.ClientId) > 0 {
+		config.ClientID = cred.Installed.ClientId
+		config.ClientSecret = cred.Installed.ClientSecret
+	}
+	if len(cred.Web.ClientId) > 0 {
+		config.ClientID = cred.Web.ClientId
+		config.ClientSecret = cred.Web.ClientSecret
+	}
+
+	config.Scopes = make([]string,2)
+    config.Scopes[0] = "https://www.googleapis.com/auth/drive"
+    config.Scopes[1] = "https://www.googleapis.com/auth/documents"
+
+	config.Endpoint = google.Endpoint
+
+   	tokFile := "tokNew.json"
+   	tok, err := tokenFromFile(tokFile)
+   	if err != nil {
+		fmt.Printf("error retrieving token: %v!\n", err)
+		os.Exit(-1)
+    }
+
+	client := config.Client(context.Background(), tok)
+
+	svc, err := drive.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {return fmt.Errorf("Unable to retrieve Drive client: %v !", err)}
+
+	gdObj.GdSvc = svc
 	return nil
 }
-
-/*
-func (gdObj *GdApiObj) Init() (err error) {
-// method that initialise the Gdrive Object. Ther service pointer is assigned to the GdApiObj
-// better to use the method InitDriveApi
-
-        ctx := context.Background()
-		gdrive.Ctx = ctx
-        b, err := ioutil.ReadFile("/home/peter/go/src/google/gdrive/credGdrive.json")
-        if err != nil {
-			return fmt.Errorf("Unable to read client secret file: %v!", err)
-		}
-
-        // If modifying these scopes, delete your previously saved token.json.
-        config, err := google.ConfigFromJSON(b, drive.DriveScope)
-        if err != nil {
-			return fmt.Errorf("Unable to parse client secret file to config: %v!", err)
-        }
-
-        client := getClient(config)
-
-        svc, err := gdrive.NewService(ctx, option.WithHTTPClient(client))
-        if err != nil {
-			return fmt.Errorf("Unable to retrieve Drive client: %v !", err)
-        }
-		gdObj.GdSvc = svc
-	return nil
-}
-*/
 
 func (gdrive *GdApiObj) GetAbout() (resp *drive.About, err error) {
 // method that lists all files in a drive
@@ -643,26 +634,38 @@ func (gdrive *GdApiObj) CopyFile(filId string, nam string, dirId string) (nfilId
 // still todo
 // assign same parent id to new file
 
-	var fil, nfil *drive.File
-	var par [1]string
+	var srcFil, destFil *drive.File
+	var parId string
 	if len(filId) < 1 {return "", fmt.Errorf("error gdrive::CopyFile -- no filId string!")}
 	if len(nam) < 1 {return "", fmt.Errorf("error gdrive::CopyFile -- no nam string!")}
 
+	srcFil, err = gdrive.GdSvc.Files.Get(filId).Context(gdrive.Ctx).Do()
+	if err != nil {return "",fmt.Errorf("error gdrive::CopyFile: could not find source file with id: %s -- %v", filId, err)}
+
+//	fmt.Printf("fil: \n%v\n", srcFil)
+
+	if len(srcFil.Parents) > 0 {parId = srcFil.Parents[0]}
+
+//	PrintDriveFile("source", srcFil)
+
 	if len(dirId) > 0 {
 		_, err = gdrive.GdSvc.Files.Get(dirId).Context(gdrive.Ctx).Do()
-		if err != nil {return "",fmt.Errorf("error gdrive::CopyFile: could not find folder with id: %s -- %v", dirId, err)}
+		if err != nil {return "",fmt.Errorf("error gdrive::CopyFile: could not find destination folder with id: %s -- %v", dirId, err)}
+		parId = dirId
 	}
 
-	fil, err = gdrive.GdSvc.Files.Get(filId).Context(gdrive.Ctx).Do()
-	if err != nil {return "",fmt.Errorf("error gdrive::CopyFile: could not find file with id: %s -- %v", filId, err)}
-	par[0] = dirId
-	fil.Parents = par[:]
-	fil.Name = nam
-	nfil, err = gdrive.GdSvc.Files.Copy(filId, fil).Context(gdrive.Ctx).Do()
-	if err != nil {
-		return "", fmt.Errorf("error gdrive::CopyFile: %v", err)
-	}
-	return nfil.Id, nil
+	if len(parId) > 0 {srcFil.Parents[0] = parId}
+
+	srcFil.Name = nam
+	// very important
+	srcFil.Id = ""
+//fmt.Printf("new name: %s\n", srcFil.Name)
+	destFil, err = gdrive.GdSvc.Files.Copy(filId, srcFil).Do()
+	if err != nil {return "", fmt.Errorf("error gdrive::CopyFile: %v", err)}
+
+//	PrintDriveFile("dest", destFil)
+
+	return destFil.Id, nil
 }
 
 func (gdrive *GdApiObj) CreateFile(pDirId string, nam string) (fileId string, err error) {
@@ -1213,4 +1216,19 @@ func (gdrive *GdApiObj) DownloadFileById(filId string, fileName string) (err err
     }
 	fmt.Println("success copied!")
 	return nil
+}
+
+func PrintDriveFile(title string, fil *drive.File) {
+
+	fmt.Printf("******* file details: %s *********\n", title)
+	fmt.Printf("Name:  %s\n", fil.Name)
+	fmt.Printf("Mime:  %s\n", fil.MimeType)
+	fmt.Printf("Id:    %s\n", fil.Id)
+	fmt.Printf("Parents: %d\n", len(fil.Parents))
+	for i:=0; i< len(fil.Parents); i++ {
+		fmt.Printf(" parent [%d]: %s\n", i, fil.Parents[i])
+	}
+	fmt.Printf("Size:    %d\n", fil.Size)
+	fmt.Println("******* end file details *********")
+
 }
