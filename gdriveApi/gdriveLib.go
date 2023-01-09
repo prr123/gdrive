@@ -114,19 +114,6 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	return tok, err
 }
 
-// Saves a token to a file path.
-/*
-func saveToken(path string, token *oauth2.Token) {
-	fmt.Printf("Saving credential file to: %s\n", path)
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	defer f.Close()
-	if err != nil {
-		fmt.Println("Unable to cache OAuth token: ", err)
-		os.Exit(1)
-	}
-	json.NewEncoder(f).Encode(token)
-}
-*/
 func (gdrive *GdApiObj) CreDumpFile(fid string, filnam string)(err error) {
 // function that creates a text file to dump document file
 
@@ -203,7 +190,7 @@ func (gdObj *GdApiObj) InitDriveApi() (err error) {
 	if err != nil {return fmt.Errorf("os.Read %s: %v!", credFilNam, err)}
 
 	err = json.Unmarshal(credbuf,&cred)
-    if err != nil {return fmt.Errorf("error unMarshal cred: %v\n", err)}
+    if err != nil {return fmt.Errorf("error unMarshal credbuf: %v\n", err)}
 
 	if len(cred.Installed.ClientId) > 0 {
 		config.ClientID = cred.Installed.ClientId
@@ -222,15 +209,12 @@ func (gdObj *GdApiObj) InitDriveApi() (err error) {
 
    	tokFile := "tokNew.json"
    	tok, err := tokenFromFile(tokFile)
-   	if err != nil {
-		fmt.Printf("error retrieving token: %v!\n", err)
-		os.Exit(-1)
-    }
+   	if err != nil {return fmt.Errorf("tokenFromFile: %v!", err)}
 
 	client := config.Client(context.Background(), tok)
 
 	svc, err := drive.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {return fmt.Errorf("Unable to retrieve Drive client: %v !", err)}
+	if err != nil {return fmt.Errorf("drive.NewService: %v!", err)}
 
 	gdObj.GdSvc = svc
 	return nil
