@@ -23,11 +23,14 @@ import (
         "google.golang.org/api/drive/v3"
         "google.golang.org/api/option"
 		"google.golang.org/api/googleapi"
+        "google.golang.org/api/docs/v1"
 )
 
 type GdApiObj  struct {
 	Ctx context.Context
 	GdSvc *drive.Service
+	GdocSvc *docs.Service
+	Doc *docs.Document
 }
 
 type FileInfo struct {
@@ -213,10 +216,16 @@ func (gdObj *GdApiObj) InitDriveApi() (err error) {
 
 	client := config.Client(context.Background(), tok)
 
-	svc, err := drive.NewService(ctx, option.WithHTTPClient(client))
+	gdsvc, err := drive.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {return fmt.Errorf("drive.NewService: %v!", err)}
 
-	gdObj.GdSvc = svc
+	gdObj.GdSvc = gdsvc
+
+	gdocsvc, err := docs.NewService(ctx, option.WithHTTPClient(client))
+    if err != nil {return fmt.Errorf("Unable to retrieve Docs client: %v", err)}
+
+	gdObj.GdocSvc = gdocsvc
+
 	return nil
 }
 
