@@ -46,12 +46,13 @@ func main() {
 
 	fmt.Println("Success download!")
 
-	err = gd.UploadFile("pdftest.pdf", "pdf")
+	filId, err := gd.UploadFile("pdftest.pdf", "pdf")
 	if err != nil {
 		fmt.Printf("error Upload: %v\n", err)
 		os.Exit(-1)
 	}
 
+	fmt.Printf("uploaded file Id: %s\n", filId)
 
 	fmt.Println("Success!")
 //	os.Exit(0)
