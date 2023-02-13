@@ -38,11 +38,13 @@ func main() {
 	docId := "1GjD9109eAAfufreM6Oj1EZpyvi6BHtCX0ihQSsKrloU"
 	fmt.Printf("Id: %s\n",docId)
 
-	err = gd.ExportFileByIdDl(docId, "pdftest", "pdf")
+	filInfo,err := gd.GetFilInfoById(docId)
 	if err != nil {
-		fmt.Printf("error Export: %v\n", err)
+		fmt.Printf("error GetFilInfo: %v\n", err)
 		os.Exit(-1)
 	}
+
+	gdrive.PrintFilInfo(filInfo)
 
 	fmt.Println("Success download!")
 
