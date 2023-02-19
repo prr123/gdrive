@@ -17,12 +17,14 @@ import (
 
 func main() {
 
+/*
     numArgs := len(os.Args)
     if numArgs < 2 {
         fmt.Println("error - no comand line arguments!")
   		fmt.Println("gdrive_about usage is: \"gdriveAbout\"\n")
         os.Exit(1)
     }
+*/
 
 	gd, err := gdrive.InitDriveApi()
 	if err != nil {
@@ -36,6 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	gdrive.PrintAboutResp(resp)
 
 	fmt.Println("Success!")
 	os.Exit(0)
